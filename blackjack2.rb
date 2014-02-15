@@ -3,15 +3,15 @@
 # Hoping to do a more personalized version in the future
 
 class Card
-  attr_accessor :suit, :value
+  attr_accessor :suit, :face_value
   
-  def initialize (s, v)
+  def initialize (s, fv)
     @suit = s
-    @value = v
+    @face_value = fv
   end
   
   def to_s
-    "#{value} of #{suit}"
+    "#{face_value} of #{suit}"
   end
 end
 
@@ -21,8 +21,8 @@ class Deck
   def initialize
     @cards = []
     ['Hearts', 'Diamonds', 'Spades', 'Clubs'].each do |suit|
-      [2, 3, 4, 5, 6, 7, 8, 9, 10, 'Jack', 'Queen', 'King', 'Ace'].each do |value|
-        @cards << Card.new(suit, value)
+      [2, 3, 4, 5, 6, 7, 8, 9, 10, 'Jack', 'Queen', 'King', 'Ace'].each do |face_value|
+        @cards << Card.new(suit, face_value)
       end
     end
     mix_cards!
@@ -61,6 +61,8 @@ module Hand
   end
 
   def hand_value
+  face_values = cards.map{|card| card.face_value }
+  
   value = 0
     cards.each do |card|
       if card.to_s.include?('Ace')
@@ -71,8 +73,9 @@ module Hand
         value += card.to_s.to_i
       end
     end
-    cards.select {|aces| aces == (cards.to_s[0] == 'A')}.count.times do
-      value -= 10 if value > 21
+    face_values.select {|val| val == "Ace"}.count.times do
+      break if value <= 21
+      value -= 10
     end
     value
   end
@@ -164,34 +167,33 @@ class Blackjack
   end
   
   def dealer_turn
-    if dealer.has_blackjack?
-      dealer.show_hand
-      puts "Dealer has blackjack!"
-      compare_scores(dealer, player)
-    end
     while dealer.hand_value < DEALER_HIT_MIN
       dealer.show_hand
       new_card = deck.deal_one
       dealer.take_card(new_card)
+    end
+    if dealer.has_blackjack?
+      dealer.show_hand
+      puts "Dealer has blackjack!"
+      compare_scores
     end
     if dealer.hand_value > BLACKJACK_AMOUNT
       dealer.show_hand
       puts "Dealer busted! You win!"
       play_again?
     end
+    dealer.show_hand
   end
   
-  def compare_scores dealer, player
+  def compare_scores
     if player.hand_value > dealer.hand_value
       puts "You win, #{player.name}!"
-      play_again?
     elsif dealer.hand_value > player.hand_value
       puts "Sorry, #{dealer.name} wins!"
-      play_again?
     else
       puts "It's a tie! Imagine that!"
-      play_again?
     end
+    play_again?
   end
   
   def play_again?
@@ -203,10 +205,7 @@ class Blackjack
       if replay.upcase == 'Y'
         puts "------- Starting new game -------"
         puts ''
-        deck = Deck.new
-        player.cards = []
-        dealer.cards = []
-        start
+        restart
       elsif replay.upcase == 'N'
         puts "Thanks for playing!"
         exit
@@ -222,6 +221,17 @@ class Blackjack
     dealer_turn
     compare_scores
   end
+  
+  def restart
+    deck = Deck.new
+    player.cards = []
+    dealer.cards = []
+    first_deal
+    player_turn
+    dealer_turn
+    compare_scores
+  end
+  
 end
 
 game = Blackjack.new
